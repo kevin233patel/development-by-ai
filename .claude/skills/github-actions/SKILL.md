@@ -7,7 +7,7 @@ description: Provides GitHub Actions CI/CD patterns for React + TypeScript SaaS 
 
 ## Core Principle: Fast Feedback, Safe Deployments
 
-CI should catch issues before merge. CD should deploy safely with rollback. **Every PR runs lint → type check → test → build. Main branch auto-deploys.**
+CI should catch issues before merge. CD should deploy safely with rollback. **Every PR runs lint → type check → test → build → performance gates. Main branch auto-deploys.**
 
 ## Pipeline Architecture
 
@@ -15,9 +15,11 @@ CI should catch issues before merge. CD should deploy safely with rollback. **Ev
 PR opened/updated:
   ├── Lint (ESLint + Prettier check)
   ├── Type Check (tsc --noEmit)
-  ├── Unit Tests (Vitest)
+  ├── Unit Tests (Vitest + 80% coverage)
   ├── E2E Tests (Playwright)
-  └── Build (vite build)
+  ├── Build (vite build)
+  ├── Bundle Size Check (< 170KB initial JS)  ← Runtime Performance Matrix
+  └── Lighthouse CI (score ≥ 70, blocks if < 70)  ← Runtime Performance Matrix
 
 Merge to main:
   ├── All checks above
@@ -148,6 +150,100 @@ jobs:
         with:
           name: build
           path: dist/
+
+  bundle-size:
+    name: Bundle Size Check
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Runtime Performance Matrix: Initial JS < 170KB, Per-route < 100KB, CSS < 60KB
+      # Critical thresholds: Initial JS > 350KB, Total transfer > 1MB
+      - name: Check Bundle Size
+        run: |
+          INITIAL_JS=$(find dist/assets -name "*.js" ! -name "*.map" -exec du -sk {} + | sort -k1 -n | tail -1 | awk '{print $1}')
+          echo "Largest JS chunk: ${INITIAL_JS}KB"
+          if [ "$INITIAL_JS" -gt 350 ]; then
+            echo "CRITICAL: JS bundle ${INITIAL_JS}KB exceeds 350KB — must fix before deploy"
+            exit 1
+          elif [ "$INITIAL_JS" -gt 200 ]; then
+            echo "WARNING: JS bundle ${INITIAL_JS}KB exceeds 200KB target of 170KB"
+          else
+            echo "OK: JS bundle ${INITIAL_JS}KB is within budget"
+          fi
+
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Runtime Performance Matrix: Performance ≥ 90 (Good), < 70 (Critical = must fix before deploy)
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          runs: 3
+          # lighthouserc.js thresholds (create this file in project root)
+          configPath: './lighthouserc.js'
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+```
+
+### lighthouserc.js (add to project root)
+
+```js
+// lighthouserc.js — Runtime Performance Matrix thresholds
+module.exports = {
+  ci: {
+    collect: {
+      staticDistDir: './dist',
+      numberOfRuns: 3,
+    },
+    assert: {
+      assertions: {
+        // Critical: must fix before deploy (score < 0.7)
+        'categories:performance': ['error', { minScore: 0.7 }],
+        // Good threshold
+        'categories:accessibility': ['warn', { minScore: 0.9 }],
+        // Core Web Vitals from Runtime Performance Matrix
+        'first-contentful-paint': ['warn', { maxNumericValue: 1800 }],    // Good ≤ 1.8s
+        'largest-contentful-paint': ['error', { maxNumericValue: 4000 }], // Critical > 4.0s
+        'cumulative-layout-shift': ['error', { maxNumericValue: 0.25 }],  // Critical > 0.25
+        'total-blocking-time': ['error', { maxNumericValue: 600 }],       // Critical > 600ms
+        'speed-index': ['warn', { maxNumericValue: 5800 }],               // Warning ≤ 5.8s
+        // DOM size
+        'dom-size': ['warn', { maxNumericValue: 3000 }],                  // Warning ≤ 3,000 nodes
+      },
+    },
+    upload: {
+      target: 'temporary-public-storage',
+    },
+  },
+};
 ```
 
 ## Deploy Workflow
@@ -373,7 +469,7 @@ env:
 
 ## Summary: Decision Tree
 
-1. **Setting up CI?** → Parallel jobs: lint → typecheck → test → build
+1. **Setting up CI?** → Parallel jobs: lint → typecheck → test → build → bundle-size + lighthouse
 2. **PR checks?** → All must pass before merge (branch protection)
 3. **Caching?** → `setup-node` cache + Playwright browser cache
 4. **Secrets?** → `gh secret set` or GitHub UI, never in code
@@ -381,5 +477,7 @@ env:
 6. **PR previews?** → Auto-deploy preview on PR, comment URL
 7. **Concurrency?** → Cancel previous runs with `cancel-in-progress: true`
 8. **E2E in CI?** → Single browser (Chromium), retry 2x, trace on failure
-9. **Build artifacts?** → Upload build + coverage + E2E reports
+9. **Build artifacts?** → Upload build + coverage + E2E reports + Lighthouse report
 10. **Branch protection?** → Require checks + 1 approval + no direct push
+11. **Bundle too big?** → CI fails if initial JS > 350KB; warns at > 200KB (target 170KB)
+12. **Lighthouse failing?** → Score < 70 blocks deploy; score < 90 is a warning

@@ -293,8 +293,10 @@ export default defineConfig({
     },
     // Generate sourcemaps for production debugging
     sourcemap: true,
-    // Warn if chunks exceed 500KB
-    chunkSizeWarningLimit: 500,
+    // Runtime Performance Matrix bundle budgets (gzip targets):
+    //   Initial JS: < 170KB  |  Per-route chunk: < 40KB  |  CSS: < 25KB
+    // Warn early at 170KB so we stay well under the 350KB critical threshold
+    chunkSizeWarningLimit: 170,
   },
 });
 ```
@@ -398,13 +400,50 @@ export default defineConfig({
 });
 ```
 
+## Bundle Size Budgets (Runtime Performance Matrix)
+
+These are enforced targets — **Critical = must fix before deploy.**
+
+| Asset | Target | Good | Critical |
+|---|---|---|---|
+| Initial JS Bundle (gzip) | **< 170KB** | ≤ 200KB | > 350KB |
+| Per-Route Chunk (gzip) | **< 40KB** | ≤ 50KB | > 100KB |
+| Total CSS (gzip) | **< 25KB** | ≤ 30KB | > 60KB |
+| Total Transfer Size | **< 400KB** | ≤ 500KB | > 1MB |
+
+```bash
+# Check current bundle size (gzip-aware)
+npm run build -- --mode analyze
+# Opens dist/stats.html — inspect each chunk size
+```
+
+```ts
+// vite.config.ts — enforce budgets in build output
+export default defineConfig({
+  build: {
+    // Fail loudly at 170KB so we fix before hitting 350KB critical
+    chunkSizeWarningLimit: 170,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-ui': ['class-variance-authority', 'clsx', 'tailwind-merge'],
+        },
+      },
+    },
+  },
+});
+```
+
 ## Summary: Decision Tree
 
 1. **Starting a new project?** → `npm create vite@latest -- --template react-swc-ts`
 2. **Need path aliases?** → Configure both `vite.config.ts` alias AND `tsconfig.json` paths
 3. **Accessing env vars?** → Create typed `env.ts` with Zod validation, never use `import.meta.env` directly
 4. **API calls in dev?** → Use Vite proxy, not hardcoded URLs
-5. **Bundle too large?** → Add `manualChunks` for vendor splitting
+5. **Bundle too large?** → Add `manualChunks` for vendor splitting — target < 170KB initial JS
 6. **Need to analyze bundle?** → Add `rollup-plugin-visualizer` behind a mode flag
 7. **Adding a plugin?** → Ask "Do I need this now?" — if no, don't add it
 8. **Configuring tests?** → Use Vitest in `vite.config.ts` with `test` block

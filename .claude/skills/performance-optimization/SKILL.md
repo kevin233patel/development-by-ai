@@ -5,6 +5,76 @@ description: Provides frontend performance optimization patterns for React + Typ
 
 # Performance Optimization Best Practices
 
+## Runtime Performance Matrix — Enforced Targets
+
+All code must meet these thresholds before merge. **Red = must fix before deploy.**
+
+### Core Web Vitals
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| LCP | ≤ 2.5s | ≤ 4.0s | > 4.0s | **< 2.0s** | Lighthouse / web-vitals |
+| INP | ≤ 200ms | ≤ 500ms | > 500ms | **< 150ms** | web-vitals RUM |
+| CLS | ≤ 0.1 | ≤ 0.25 | > 0.25 | **< 0.05** | Lighthouse / web-vitals |
+| FCP | ≤ 1.8s | ≤ 3.0s | > 3.0s | **< 1.5s** | Lighthouse |
+| TTFB | ≤ 800ms | ≤ 1.5s | > 1.5s | **< 600ms** | web-vitals / WebPageTest |
+
+### Bundle Size (gzip)
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| Initial JS Bundle | ≤ 200KB | ≤ 350KB | > 350KB | **< 170KB** | vite-bundle-visualizer |
+| Per-Route Chunk | ≤ 50KB | ≤ 100KB | > 100KB | **< 40KB** | Bundle analyzer |
+| Total CSS | ≤ 30KB | ≤ 60KB | > 60KB | **< 25KB** | Coverage tab |
+| Total Transfer | ≤ 500KB | ≤ 1MB | > 1MB | **< 400KB** | Network tab |
+
+### React Rendering
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| Render p50 | ≤ 8ms | ≤ 16ms | > 16ms | **< 5ms** | React Profiler |
+| Render p95 | ≤ 16ms | ≤ 50ms | > 50ms | **< 12ms** | React Profiler |
+| Unnecessary Re-renders/Action | 0 | 1–3 | > 3 | **0** | why-did-you-render |
+| DOM Node Count (peak) | ≤ 1,500 | ≤ 3,000 | > 3,000 | **< 1,200** | Lighthouse |
+
+### Memory
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| Heap after 30min | ≤ 50MB | ≤ 100MB | > 100MB | **< 40MB** | DevTools Heap Snapshot |
+| Memory Leak Rate | ≤ 0.1 MB/min | ≤ 0.5 MB/min | > 0.5 MB/min | **0 MB/min** | MemLab / Timeline |
+| Detached DOM Nodes | 0 | ≤ 10 | > 10 | **0** | Heap Snapshot |
+
+### Network & Caching
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| API Response p50 | ≤ 200ms | ≤ 500ms | > 500ms | **< 150ms** | Network tab / Sentry |
+| API Response p95 | ≤ 500ms | ≤ 1.5s | > 1.5s | **< 400ms** | Sentry Performance |
+| Query Cache Hit Rate | ≥ 80% | ≥ 60% | < 60% | **> 85%** | TanStack Query DevTools |
+| CDN Cache Hit Rate | ≥ 95% | ≥ 85% | < 85% | **> 97%** | CDN dashboard |
+| Request Waterfall Depth | ≤ 2 | ≤ 3 | > 3 | **≤ 2** | WebPageTest |
+
+### Interaction Speed
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| Search Response | ≤ 300ms | ≤ 800ms | > 800ms | **< 200ms** | Custom RUM |
+| Filter/Sort Response | ≤ 200ms | ≤ 500ms | > 500ms | **< 100ms** | Custom RUM |
+| Route Navigation | ≤ 300ms | ≤ 800ms | > 800ms | **< 200ms** | Performance marks |
+| Form Submission | ≤ 500ms | ≤ 1.5s | > 1.5s | **< 400ms** | Custom RUM |
+
+### Lighthouse Scores
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| Performance Score | ≥ 90 | ≥ 70 | < 70 | **> 95** | Lighthouse CI |
+| Total Blocking Time | ≤ 200ms | ≤ 600ms | > 600ms | **< 150ms** | Lighthouse |
+| Speed Index | ≤ 3.4s | ≤ 5.8s | > 5.8s | **< 2.5s** | Lighthouse |
+
+### Infrastructure
+| Metric | Good | Warning | Critical | **Target** | Tool |
+|---|---|---|---|---|---|
+| Build Time | ≤ 60s | ≤ 120s | > 120s | **< 45s** | CI logs |
+| CI Pipeline Duration | ≤ 5 min | ≤ 10 min | > 10 min | **< 4 min** | GitHub Actions |
+| Deploy Time (staging) | ≤ 2 min | ≤ 5 min | > 5 min | **< 90s** | Deploy logs |
+| Error Rate (unhandled) | ≤ 0.1% | ≤ 1% | > 1% | **< 0.05%** | Sentry |
+
+---
+
 ## Core Principle: Measure First, Optimize Second
 
 Never optimize based on assumptions. **Profile, identify the bottleneck, fix it, measure again.** Premature optimization adds complexity without proven benefit.
