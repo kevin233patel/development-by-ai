@@ -1,0 +1,37 @@
+{
+  "teammateMode": "in-process",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/kevingardhariya/Documents/code/Development/motadata/development-by-ai/.claude/hooks/log-agent-message.sh",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/kevingardhariya/Documents/code/Development/motadata/development-by-ai/.claude/hooks/teammate-idle.sh"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/kevingardhariya/Documents/code/Development/motadata/development-by-ai/.claude/hooks/task-completed.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

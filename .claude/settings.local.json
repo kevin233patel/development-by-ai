@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/kevingardhariya/.claude/skills/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/kevingardhariya/.claude/skills/sonarqube-compliance",
+      "/Users/kevingardhariya/Documents/code/Development/motadata/development-by-ai/.claude"
+    ]
+  }
+}
