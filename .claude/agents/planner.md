@@ -109,7 +109,38 @@ find src/features -name "*Service.ts" 2>/dev/null
 
 # Check what shadcn components are installed
 ls src/components/ui/ 2>/dev/null
+
+# Check what Layer 2 composed components exist
+ls src/components/common/ 2>/dev/null
 ```
+
+#### Step 1b: Build UI Component Inventory (MANDATORY)
+
+Create a complete inventory of available shadcn/ui and composed components. This inventory is **required input for feature-dev**.
+
+```bash
+# List all installed shadcn/ui primitives (Layer 1)
+ls -1 src/components/ui/*.tsx 2>/dev/null | sed 's|.*/||; s|\.tsx||'
+
+# List all composed components (Layer 2)
+ls -1d src/components/common/*/ 2>/dev/null | sed 's|.*/\(.*\)/|\1|'
+```
+
+Produce a **UI Component Inventory** table:
+
+| Component | Layer | Import Path | Key Props/Variants |
+|---|---|---|---|
+| Button | 1 (shadcn) | `@/components/ui/button` | variant: default/secondary/outline/destructive/ghost/link |
+| Input | 1 (shadcn) | `@/components/ui/input` | type, placeholder, disabled |
+| Label | 1 (shadcn) | `@/components/ui/label` | htmlFor |
+| Form | 1 (shadcn) | `@/components/ui/form` | FormField, FormItem, FormLabel, FormControl, FormMessage |
+| LoadingButton | 2 (composed) | `@/components/common/LoadingButton` | isLoading, loadingText |
+| ... | ... | ... | ... |
+
+Cross-reference this inventory against the design-analyzer's **Component Mapping Table** to identify:
+- Components that exist and can be reused directly
+- shadcn/ui components that need `npx shadcn@latest add`
+- Custom components that need to be built
 
 ### Step 2: Map Story Requirements to Files
 
@@ -223,6 +254,30 @@ Check if this story needs shared code that doesn't exist yet:
 
 List any missing shared dependencies as **prerequisite tasks**.
 
+### Step 8: Enforce shadcn/ui Component Usage (CRITICAL)
+
+**This is a hard gate.** The plan MUST enforce these rules:
+
+1. **NEVER raw HTML elements** when a shadcn/ui equivalent exists:
+   - `<input>` → `Input` from `@/components/ui/input`
+   - `<button>` → `Button` from `@/components/ui/button`
+   - `<label>` → `Label` from `@/components/ui/label` (or `FormLabel` inside forms)
+   - `<select>` → `Select` from `@/components/ui/select`
+   - `<textarea>` → `Textarea` from `@/components/ui/textarea`
+   - `<form>` with validation → `Form` from `@/components/ui/form` (React Hook Form integration)
+
+2. **Form fields MUST use shadcn Form pattern:**
+   ```
+   Form > FormField > FormItem > FormLabel + FormControl + FormMessage
+   ```
+   NEVER: `<label>` + `<input>` + `<span className="error">`
+
+3. **Design tokens from design-analyzer MUST be used** — no hardcoded hex colors, no arbitrary spacing values.
+
+4. **Copy text from design-analyzer's Copy Text Table is source of truth** for all user-visible strings when Mode A was used.
+
+Include these rules explicitly in every feature-dev task description.
+
 ## Output Format
 
 ```markdown
@@ -235,6 +290,18 @@ List any missing shared dependencies as **prerequisite tasks**.
 ```bash
 npx shadcn@latest add [component1] [component2] ...
 ```
+
+## UI Component Inventory (from Step 1b)
+
+| Component | Layer | Import Path | Used For |
+|---|---|---|---|
+| Button | 1 | `@/components/ui/button` | Submit, Cancel, OAuth actions |
+| Input | 1 | `@/components/ui/input` | Email field |
+| Label | 1 | `@/components/ui/label` | Form labels |
+| Form | 1 | `@/components/ui/form` | Form validation wrapper |
+| LoadingButton | 2 | `@/components/common/LoadingButton` | Submit with loading state |
+
+**RULE: feature-dev MUST use these components. Raw HTML elements (`<input>`, `<button>`, `<label>`) are PROHIBITED.**
 
 ## File Manifest
 
@@ -296,13 +363,18 @@ Your spawn prompt contains both the story spec (from story-analyzer) and the UI 
 After producing the implementation plan, **create tasks in the shared task list**. Each phase from your file manifest becomes one or more tasks. Use `TaskCreate` for each.
 
 **Task creation pattern:**
+
+Include the UI Component Inventory and design token requirements in the Components/Pages task descriptions so feature-dev has the full context.
+
 ```
 TaskCreate: title="[RED] Write unit tests — {feature}" | assignee=tdd-runner | deps=none
 TaskCreate: title="[IMPL] Types + schemas — {feature}" | assignee=feature-dev | deps=RED task
 TaskCreate: title="[IMPL] Service layer — {feature}" | assignee=feature-dev | deps=types task
 TaskCreate: title="[IMPL] Hooks — {feature}" | assignee=feature-dev | deps=service task
 TaskCreate: title="[IMPL] Components — {feature}" | assignee=feature-dev | deps=hooks task
+  → description MUST include: "Use ONLY shadcn/ui components from UI Component Inventory. NO raw HTML. Use design tokens from Figma Token Map. Use exact copy text from Copy Text Table."
 TaskCreate: title="[IMPL] Pages + routes — {feature}" | assignee=feature-dev | deps=components task
+  → description MUST include: "Use ONLY shadcn/ui components. Apply exact Tailwind classes from design-analyzer spec."
 TaskCreate: title="[GREEN] Run coverage — {feature}" | assignee=tdd-runner | deps=all IMPL tasks
 TaskCreate: title="[REVIEW] Code review" | assignee=code-reviewer | deps=all IMPL tasks
 TaskCreate: title="[REVIEW] Security review" | assignee=security-reviewer | deps=all IMPL tasks

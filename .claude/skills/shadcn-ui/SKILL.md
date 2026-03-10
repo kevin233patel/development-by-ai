@@ -638,6 +638,157 @@ import { FolderOpen } from 'lucide-react';
 />
 ```
 
+## CRITICAL RULE: Never Raw HTML When shadcn/ui Exists
+
+**This is the #1 rule.** Never use raw HTML elements when a shadcn/ui component exists for the same purpose.
+
+```tsx
+// FORBIDDEN — raw HTML elements
+<input type="email" placeholder="you@company.com" />
+<button onClick={handleSubmit}>Submit</button>
+<label htmlFor="email">Email</label>
+<select onChange={handleChange}><option>A</option></select>
+<textarea rows={4} />
+
+// REQUIRED — shadcn/ui components
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+
+<Input type="email" placeholder="you@company.com" />
+<Button onClick={handleSubmit}>Submit</Button>
+<Label htmlFor="email">Email</Label>
+<Select onValueChange={handleChange}>
+  <SelectTrigger><SelectValue /></SelectTrigger>
+  <SelectContent><SelectItem value="a">A</SelectItem></SelectContent>
+</Select>
+<Textarea rows={4} />
+```
+
+**For forms with validation**, always use the full shadcn Form pattern:
+```tsx
+// FORBIDDEN — raw form pattern
+<label>Email</label>
+<input id="email" />
+<span className="error">{errors.email}</span>
+
+// REQUIRED — shadcn Form pattern
+<FormField control={form.control} name="email" render={({ field }) => (
+  <FormItem>
+    <FormLabel>Email</FormLabel>
+    <FormControl><Input {...field} /></FormControl>
+    <FormMessage />
+  </FormItem>
+)} />
+```
+
+**When to install**: If a needed component isn't in `src/components/ui/`, install it:
+```bash
+npx shadcn@latest add input button label select textarea form
+```
+
+## Component Lookup Map (Figma Element → shadcn Component)
+
+Use this map when selecting components for any UI element from a Figma design or story requirement.
+
+### Buttons & Actions
+| UI Element | Component | Import |
+|---|---|---|
+| Primary button | `<Button>` | `@/components/ui/button` |
+| Secondary/outline button | `<Button variant="outline">` | `@/components/ui/button` |
+| Danger/delete button | `<Button variant="destructive">` | `@/components/ui/button` |
+| Ghost/text button | `<Button variant="ghost">` | `@/components/ui/button` |
+| Icon button | `<Button variant="ghost" size="icon">` | `@/components/ui/button` |
+| Link-style button | `<Button variant="link">` | `@/components/ui/button` |
+| Toggle button | `<Toggle>` | `@/components/ui/toggle` |
+| Toggle group | `<ToggleGroup>` | `@/components/ui/toggle-group` |
+
+### Form Inputs
+| UI Element | Component | Import |
+|---|---|---|
+| Text field | `<Input>` + `<Label>` | `input`, `label` |
+| Textarea / multiline | `<Textarea>` | `@/components/ui/textarea` |
+| Simple dropdown | `<Select>` | `@/components/ui/select` |
+| Dropdown with search | `<Command>` inside `<Popover>` (Combobox) | `command`, `popover` |
+| Checkbox | `<Checkbox>` | `@/components/ui/checkbox` |
+| Radio buttons | `<RadioGroup>` | `@/components/ui/radio-group` |
+| On/off toggle | `<Switch>` | `@/components/ui/switch` |
+| Date picker | `<Calendar>` inside `<Popover>` | `calendar`, `popover` |
+| Slider / range | `<Slider>` | `@/components/ui/slider` |
+| OTP / code input | `<InputOTP>` | `@/components/ui/input-otp` |
+| Full form with validation | `<Form>` (React Hook Form) | `@/components/ui/form` |
+
+### Overlays & Popups
+| UI Element | Component | Import |
+|---|---|---|
+| Modal / dialog | `<Dialog>` | `@/components/ui/dialog` |
+| Confirmation popup | `<AlertDialog>` | `@/components/ui/alert-dialog` |
+| Right-side panel | `<Sheet side="right">` | `@/components/ui/sheet` |
+| Bottom sheet (mobile) | `<Sheet side="bottom">` | `@/components/ui/sheet` |
+| Tooltip (on hover) | `<Tooltip>` | `@/components/ui/tooltip` |
+| Popover (on click) | `<Popover>` | `@/components/ui/popover` |
+| Hover preview card | `<HoverCard>` | `@/components/ui/hover-card` |
+| Toast / notification | `toast()` from sonner | `sonner` |
+| Command palette (Cmd+K) | `<Command>` inside `<Dialog>` | `command`, `dialog` |
+
+### Navigation
+| UI Element | Component | Import |
+|---|---|---|
+| Tab bar | `<Tabs>` | `@/components/ui/tabs` |
+| Sidebar | `<Sidebar>` | `@/components/ui/sidebar` |
+| Breadcrumbs | `<Breadcrumb>` | `@/components/ui/breadcrumb` |
+| Dropdown menu | `<DropdownMenu>` | `@/components/ui/dropdown-menu` |
+| Menu bar | `<Menubar>` | `@/components/ui/menubar` |
+| Navigation links | `<NavigationMenu>` | `@/components/ui/navigation-menu` |
+| Pagination | `<Pagination>` | `@/components/ui/pagination` |
+
+### Data Display
+| UI Element | Component | Import |
+|---|---|---|
+| Data table | `<DataTable>` (TanStack) | `@/components/common/data-table` |
+| Simple table | `<Table>` | `@/components/ui/table` |
+| Card / panel | `<Card>` | `@/components/ui/card` |
+| Badge / tag | `<Badge>` | `@/components/ui/badge` |
+| Avatar / profile pic | `<Avatar>` | `@/components/ui/avatar` |
+| Accordion / FAQ | `<Accordion>` | `@/components/ui/accordion` |
+| Chart / graph | `<Chart>` (Recharts) | `@/components/ui/chart` |
+| Progress bar | `<Progress>` | `@/components/ui/progress` |
+| Skeleton loader | `<Skeleton>` | `@/components/ui/skeleton` |
+| Horizontal rule | `<Separator>` | `@/components/ui/separator` |
+| Scrollable area | `<ScrollArea>` | `@/components/ui/scroll-area` |
+| Collapsible section | `<Collapsible>` | `@/components/ui/collapsible` |
+| Resizable panels | `<Resizable>` | `@/components/ui/resizable` |
+| Carousel / slider | `<Carousel>` | `@/components/ui/carousel` |
+
+### Feedback
+| UI Element | Component | Import |
+|---|---|---|
+| Info/warning banner | `<Alert>` | `@/components/ui/alert` |
+| Toast message | `toast()` | `sonner` |
+| Loading spinner | `<LoadingSpinner>` | `@/components/common/loading-spinner` |
+| Empty state | `<EmptyState>` | `@/components/common/empty-state` |
+
+### shadcn Override Strategy
+
+When a shadcn component's default styles conflict with Figma:
+
+1. **Read the component source** (`src/components/ui/<name>.tsx`) to understand base styles
+2. **Override with className**: `<Card className="rounded-lg shadow-none p-0">`
+3. **Use `!important` prefix** (`!border`, `!rounded-md`) when base styles override your className
+4. **Known override conflicts:**
+
+| Component | Base Style Issue | Fix |
+|---|---|---|
+| `Card` | `rounded-xl` + shadow + padding | `rounded-lg shadow-none p-0` |
+| `Badge` | Fixed padding/radius | `rounded-md px-2 py-0.5` |
+| `Button` | Height/padding presets | `h-10 px-4` with exact Figma values |
+| `InputOTPSlot` | Connected borders, no radius | `!border !rounded-md shadow-none` |
+| `Separator` | Default color | `bg-[#hex]` |
+
+5. **When overrides get complex** (3+ conflicting properties), use a plain `<div>` styled from scratch
+
 ## Anti-Patterns to Avoid
 
 ```tsx

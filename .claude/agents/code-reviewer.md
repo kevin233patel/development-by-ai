@@ -158,7 +158,43 @@ For every rule in the story's Validation Rules table:
 - [ ] INV-9: No self-registration
 - [ ] INV-11: Server data in TanStack Query, not Redux
 
-## Review Dimension E: Coding Style
+## Review Dimension E: shadcn/ui & Design Token Compliance (CRITICAL)
+
+Read `.claude/skills/shadcn-ui/SKILL.md` before reviewing.
+
+For every `.tsx` component and page file, run these checks:
+
+### E1: No Raw HTML Elements
+```bash
+grep -n '<input\b\|<button\b\|<select\b\|<textarea\b\|<label\b' {file-path}
+```
+Any match is a **CRITICAL** finding. The fix is always to replace with the shadcn/ui equivalent:
+- `<input>` → `Input` from `@/components/ui/input`
+- `<button>` → `Button` from `@/components/ui/button`
+- `<label>` → `Label` from `@/components/ui/label` (or `FormLabel` inside forms)
+- `<select>` → `Select` from `@/components/ui/select`
+- `<textarea>` → `Textarea` from `@/components/ui/textarea`
+
+**Exception**: Inside `@/components/ui/*.tsx` files (shadcn primitives themselves use raw HTML — that's expected).
+
+### E2: No Hardcoded Colors
+```bash
+grep -n '#[0-9a-fA-F]\{3,8\}' {file-path}
+```
+Hex colors in `className` or `style` props are **HIGH** findings. Must use CSS variable tokens (`bg-primary`, `text-destructive`, etc.).
+
+**Exception**: Hex colors inside `@/index.css` or theme configuration files are expected.
+
+### E3: shadcn Form Pattern
+For any file with form inputs, verify:
+- [ ] Uses `Form` + `FormField` + `FormItem` + `FormLabel` + `FormControl` + `FormMessage`
+- [ ] NOT raw `<label>` + `<input>` + `<span>` for error display
+
+### E4: Component Layer Compliance
+- [ ] Feature components import from `@/components/ui/` (Layer 1) or `@/components/common/` (Layer 2)
+- [ ] No duplicating existing composed components (e.g., building a loading button when `LoadingButton` exists)
+
+## Review Dimension F: Coding Style
 
 From global rules `.claude/rules/common/coding-style.md`:
 
@@ -169,12 +205,50 @@ From global rules `.claude/rules/common/coding-style.md`:
 - [ ] No hardcoded values: Constants or config used
 - [ ] Functions < 50 lines
 
+## Review Dimension G: Pixel-Perfect Design Matching
+
+When design-analyzer produced a UI spec (Mode A with Figma), cross-reference every `.tsx` component against the spec:
+
+### G1: Component Conventions
+- [ ] Function declarations (NOT arrow functions, NOT `React.FC`)
+- [ ] `data-slot` attribute on root element
+- [ ] `className?: string` prop accepted and merged with `cn()`
+- [ ] No `forwardRef` usage (React 19 — ref is a regular prop)
+- [ ] Named exports (`export { Component }`)
+
+### G2: Spacing Accuracy
+Compare Tailwind classes in code against design-analyzer's layout specs:
+- [ ] Gap values match Figma exactly (e.g., `gap-6` not `gap-4` when Figma says 24px)
+- [ ] Padding values match Figma (arbitrary values like `p-[18px]` when not on scale)
+- [ ] Fixed dimensions use `w-[Xpx] shrink-0` not grid stretching
+- [ ] Nested auto-layout frames have corresponding wrapper `<div>` with inner gap
+
+### G3: Typography Accuracy
+- [ ] Font size matches Figma (`text-sm` = 14px, `text-base` = 16px, etc.)
+- [ ] Font weight is EXACT from Figma (500 = `font-medium`, 600 = `font-semibold`, 700 = `font-bold`)
+- [ ] Line height specified when Figma value differs from Tailwind default
+
+### G4: Color Token Usage
+- [ ] Semantic theme colors use CSS variables (`bg-background`, `text-foreground`, `bg-primary`)
+- [ ] Accent/badge one-off colors use exact hex from Figma (`bg-[#FBF4EC]`), NOT Tailwind palette approximation
+- [ ] Dark mode `dark:` variants present for every color class (if design has dark mode)
+
+### G5: Layout Structure
+- [ ] Flex direction matches Figma (`flex` for row, `flex flex-col` for column)
+- [ ] Justify/align matches Figma (`justify-between`, `items-center`, etc.)
+- [ ] Component tree mirrors Figma's nested auto-layout hierarchy
+
+**Severity for pixel-perfect issues:**
+- Wrong Tailwind class that changes visual appearance → **HIGH**
+- Missing dark mode variant → **MEDIUM**
+- Slight spacing difference (1-2px on scale) → **LOW**
+
 ## Severity Levels
 
 | Severity | Definition | Action Required |
 |----------|-----------|-----------------|
-| **CRITICAL** | Security issue, PRD invariant violation, missing story requirement | Must fix before merge |
-| **HIGH** | SonarQube violation, skill pattern deviation, missing error handling | Should fix before merge |
+| **CRITICAL** | Security issue, PRD invariant violation, missing story requirement, raw HTML element instead of shadcn/ui | Must fix before merge |
+| **HIGH** | SonarQube violation, skill pattern deviation, missing error handling, hardcoded hex color | Should fix before merge |
 | **MEDIUM** | Code style issue, naming convention, missing accessibility | Fix recommended |
 | **LOW** | Suggestion for improvement, alternative pattern | Optional |
 

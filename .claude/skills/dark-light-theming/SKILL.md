@@ -245,6 +245,62 @@ Purple: purple-05 #faf7fd → purple-10 #f5f0fc → purple-20 #e7dcfa → purple
 </div>
 ```
 
+## Dark Mode From the Start (CRITICAL)
+
+If the design supports dark mode, add `dark:` variants on EVERY element in the first pass. Don't defer dark mode to a second pass — it's much harder to retrofit.
+
+```tsx
+// BAD: light mode only — breaks in dark mode
+<div className="bg-white text-[#111C2C] border-[#ECF1F9]">
+
+// GOOD: always pair light + dark variants from the start
+<div className="bg-white text-[#111C2C] border-[#ECF1F9] dark:bg-[#0B1120] dark:text-[#F1F5F9] dark:border-[#334155]">
+
+// BEST: Use semantic tokens — automatic dark mode, zero dark: prefixes
+<div className="bg-background text-foreground border-border">
+```
+
+**Decision rule:**
+- If the color maps to a semantic token → use the token (e.g., `bg-background`)
+- If the color is an accent/badge/one-off → use exact hex with `dark:` counterpart (e.g., `bg-[#FBF4EC] dark:bg-[#3D2106]`)
+
+## Accent & Badge Colors (Exact Hex Strategy)
+
+For design-specific accent colors that don't map to the theme (badges, status dots, category tags), use the **exact hex from Figma** — never approximate with Tailwind palette colors.
+
+```tsx
+// BAD: Tailwind palette approximation
+"bg-orange-50 text-orange-700"
+
+// GOOD: Exact hex from Figma fill data
+"bg-[#FBF4EC] text-[#D28E3D]"
+```
+
+When extracting accent colors from Figma, build a color map:
+```typescript
+const badgeColors = {
+  internal: 'bg-[#FBF4EC] text-[#D28E3D] dark:bg-[#3D2106] dark:text-[#FFCC80]',
+  marketing: 'bg-[#F7F7E8] text-[#B1AB1D] dark:bg-[#3D3A06] dark:text-[#FFEE58]',
+  // ... extract ALL variants from Figma component set
+} as const;
+```
+
+## Figma Token → CSS Variable Mapping Process
+
+When design-analyzer extracts tokens via `get_variable_defs`:
+
+1. Map each Figma token to the corresponding CSS variable in `src/index.css`
+2. If a Figma token maps to an existing semantic slot (e.g., `--color-primary`), use it directly
+3. If a Figma token is new (e.g., a new status color), add it to both `:root` and `.dark` blocks
+4. Keep hex format for our brand palette (not OKLCH) — our theme is hex-based
+
+| Figma Token | CSS Variable | Light Hex | Dark Hex | Tailwind Class |
+|---|---|---|---|---|
+| Brand Primary | `--color-primary` | `#006dfa` | `#66b3ff` | `bg-primary` / `text-primary` |
+| Background | `--color-background` | `#ffffff` | `#030b5d` | `bg-background` |
+| Destructive | `--color-destructive` | `#db132a` | `#f58a8a` | `bg-destructive` |
+| Success | `--color-success` | `#14b053` | `#36d576` | `bg-success` |
+
 ## Charts and Data Visualization
 
 ```tsx

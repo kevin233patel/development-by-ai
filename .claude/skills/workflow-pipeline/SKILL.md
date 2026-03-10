@@ -59,14 +59,17 @@ User Story (.md)
 
 ### 2. design-analyzer
 - **Input**: story-analyzer output + optional Figma URL
-- **Output**: UI spec — component breakdown, layout, color tokens, responsive behavior
-- **Figma MCP**: If URL provided → `get_design_context`. If no URL → auto-design using shadcn/ui + Tailwind brand palette
+- **Output**: UI spec — component breakdown, layout, color tokens, responsive behavior + **Figma Token Map** + **Component Mapping Table** + **Copy Text Table** + **Figma→Tailwind Translation Reference**
+- **Figma MCP (Mode A)**: Calls `get_design_context` → `get_variable_defs` → `get_code_connect_suggestions` (all mandatory). Extracts exact tokens, component mappings, copy text, and translates all Figma values (layout, sizing, gap, padding, typography, borders, colors) to exact Tailwind classes using built-in translation tables.
+- **Mode B (no Figma)**: Auto-design using shadcn/ui + Tailwind brand palette + spacing-guide conventions
+- **Pre-flight checklist**: Validates nested frame mirroring, dark mode coverage, scrollable areas, shadcn override notes, fixed-width handling
 - **When to skip**: Pure API/logic features with no UI
 
 ### 3. planner
-- **Input**: story-analyzer output + design-analyzer output
-- **Output**: Phased build plan — file list, component hierarchy, implementation order, skill references per file
+- **Input**: story-analyzer output + design-analyzer output (including Token Map, Component Mapping, Copy Text)
+- **Output**: Phased build plan — file list, component hierarchy, implementation order, skill references per file + **UI Component Inventory** + **shadcn/ui enforcement rules**
 - **Model**: opus (complex architectural reasoning)
+- **Hard rule**: Plans MUST include UI Component Inventory and explicitly prohibit raw HTML elements
 - **When to skip**: Never for features > 3 files
 
 ### 4. tdd-runner (RED phase)
@@ -76,8 +79,9 @@ User Story (.md)
 - **Coverage target**: 80% minimum
 
 ### 5. feature-dev
-- **Input**: planner build plan + tdd-runner failing tests + design-analyzer UI spec
-- **Output**: Implemented code following 25 skill patterns
+- **Input**: planner build plan (with UI Component Inventory) + tdd-runner failing tests + design-analyzer UI spec (with Token Map, Component Mapping, Copy Text)
+- **Output**: Implemented code following 25 skill patterns using **only shadcn/ui components** (no raw HTML)
+- **Hard rules**: (1) NEVER raw `<input>/<button>/<label>` — always shadcn/ui. (2) Use Figma copy text over story spec. (3) Use design tokens, no hardcoded colors. (4) `data-slot` on root elements. (5) No `forwardRef` (React 19). (6) Mirror Figma auto-layout nesting. (7) Exact spacing (arbitrary values for non-scale).
 - **Skills consulted**: react-typescript, shadcn-ui, tailwind-css, redux-toolkit, tanstack-query, rest-api-integration, react-hook-form-zod, authentication, rbac, error-handling
 - **Model**: sonnet
 
@@ -118,10 +122,10 @@ User Story (.md)
 | Phase | Primary Skills |
 |-------|----------------|
 | story-analyzer | (reads story MD) |
-| design-analyzer | shadcn-ui, tailwind-css, dark-light-theming, responsive-design, accessibility |
-| planner | react-typescript, react-router, redux-toolkit |
+| design-analyzer | shadcn-ui, tailwind-css, dark-light-theming, responsive-design, accessibility, spacing-guide |
+| planner | react-typescript, react-router, redux-toolkit, spacing-guide |
 | tdd-runner | vitest, react-testing-library, playwright |
-| feature-dev | react-typescript, shadcn-ui, tailwind-css, redux-toolkit, tanstack-query, react-hook-form-zod, rest-api-integration, authentication, rbac, error-handling, dark-light-theming |
+| feature-dev | react-typescript, shadcn-ui, tailwind-css, redux-toolkit, tanstack-query, react-hook-form-zod, rest-api-integration, authentication, rbac, error-handling, dark-light-theming, spacing-guide |
 | code-reviewer | sonarqube-compliance, eslint-prettier |
 | security-reviewer | frontend-security, authentication |
 | e2e-runner | playwright |

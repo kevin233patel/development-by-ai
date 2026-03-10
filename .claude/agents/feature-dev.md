@@ -113,19 +113,136 @@ Read: `.claude/skills/tanstack-query/SKILL.md`
 ```
 
 ### Components (`.tsx`)
-Read: `.claude/skills/react-typescript/SKILL.md`, `.claude/skills/shadcn-ui/SKILL.md`, `.claude/skills/tailwind-css/SKILL.md`, `.claude/skills/accessibility/SKILL.md`
+Read: `.claude/skills/react-typescript/SKILL.md`, `.claude/skills/shadcn-ui/SKILL.md`, `.claude/skills/tailwind-css/SKILL.md`, `.claude/skills/accessibility/SKILL.md`, `.claude/skills/spacing-guide/SKILL.md`
+
+**Component conventions (MANDATORY):**
 ```typescript
-// Function declarations, not arrow functions for components
-// Named exports only
+// Function declarations, NOT arrow functions or React.FC
+// Named exports only (export { ComponentName })
 // Props interface with JSDoc for non-obvious props
 // handle* for internal handlers, on* for callback props
-// No React.FC
+// data-slot attribute on root element for identification
+// className prop accepted and merged with cn()
+// No forwardRef — React 19 passes ref as regular prop
+
+// TEMPLATE:
+import { cn } from '@/lib/utils';
+
+interface MyComponentProps {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+function MyComponent({ className, children }: MyComponentProps) {
+  return (
+    <div data-slot="my-component" className={cn("flex flex-col gap-4", className)}>
+      {children}
+    </div>
+  );
+}
+
+export { MyComponent };
 ```
+
+**With variants (use class-variance-authority):**
+```typescript
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+
+const myComponentVariants = cva('base-classes', {
+  variants: {
+    variant: { default: '', destructive: '' },
+    size: { sm: '', md: '', lg: '' },
+  },
+  defaultVariants: { variant: 'default', size: 'md' },
+});
+
+interface MyComponentProps extends VariantProps<typeof myComponentVariants> {
+  className?: string;
+}
+
+function MyComponent({ className, variant, size }: MyComponentProps) {
+  return (
+    <div data-slot="my-component" className={cn(myComponentVariants({ variant, size }), className)}>
+    </div>
+  );
+}
+
+export { MyComponent };
+```
+
+#### CRITICAL: shadcn/ui Component Mandate
+
+**NEVER use raw HTML elements when a shadcn/ui equivalent exists.** This is non-negotiable.
+
+| RAW HTML (FORBIDDEN) | shadcn/ui (REQUIRED) | Import |
+|---|---|---|
+| `<input>` | `Input` | `@/components/ui/input` |
+| `<button>` | `Button` | `@/components/ui/button` |
+| `<label>` | `Label` or `FormLabel` | `@/components/ui/label` or `@/components/ui/form` |
+| `<select>` | `Select` | `@/components/ui/select` |
+| `<textarea>` | `Textarea` | `@/components/ui/textarea` |
+| `<form>` with RHF | `Form` | `@/components/ui/form` |
+| `<dialog>` | `Dialog` | `@/components/ui/dialog` |
+| `<table>` | `Table` | `@/components/ui/table` |
+
+**Form fields MUST follow the shadcn Form pattern:**
+```tsx
+// CORRECT: shadcn Form pattern
+<FormField
+  control={form.control}
+  name="email"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Email</FormLabel>
+      <FormControl>
+        <Input placeholder="you@company.com" {...field} />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
+// FORBIDDEN: Raw HTML form pattern
+<label htmlFor="email">Email</label>
+<input id="email" type="email" placeholder="you@company.com" />
+<span id="email-error">{error}</span>
+```
+
+**Check the planner's UI Component Inventory** before writing any component. If the inventory lists a component, use it. If a needed shadcn/ui component is not installed, run `npx shadcn@latest add <component>` first.
+
+For composed components (Layer 2 in `@/components/common/`), check if one exists before creating new code. Example: Use `LoadingButton` from `@/components/common/LoadingButton` instead of building a new loading button.
 
 ### Pages (`Page.tsx`)
 Read: `.claude/skills/react-router/SKILL.md`, `.claude/skills/responsive-design/SKILL.md`
 
 ## Implementation Rules
+
+### 0. Design Spec Source of Truth (CRITICAL — read before any implementation)
+
+When the design-analyzer used **Mode A (Figma)**, the UI spec includes:
+
+1. **Copy Text Table** — contains exact UI text from Figma. When Figma copy differs from story spec copy, **Figma text wins** for UI rendering. Story spec text is only used when Figma has no text for that element.
+
+2. **Figma Token Map** — contains exact CSS variable tokens extracted from the Figma design. **Use these tokens, NEVER hardcoded hex colors.** Map them to Tailwind utility classes (e.g., `bg-primary`, `text-foreground`) — never `bg-[#006dfa]` or `style={{ color: '#006dfa' }}`.
+
+3. **Component Mapping Table** — specifies which shadcn/ui component to use for each Figma element. Follow this mapping exactly. If a Figma element maps to a shadcn/ui component, use that component. If it maps to "custom — build needed", build it using shadcn/ui primitives as building blocks.
+
+```typescript
+// BAD: Hardcoded color ignoring design tokens
+<div className="bg-[#1a1a2e] text-white">
+
+// GOOD: Using CSS variable tokens from Figma Token Map
+<div className="bg-background text-foreground">
+
+// BAD: Paraphrased copy text
+<h1>Welcome</h1>
+<p>Enter email to start</p>
+
+// GOOD: Exact copy from Figma Copy Text Table
+<h1>Welcome to Motadata NextGen</h1>
+<p>Enter your work email to get started</p>
+```
 
 ### 1. Story Traceability
 
@@ -220,7 +337,63 @@ useEffect(() => {
 // Default <form> behavior, ensure no preventDefault blocking it
 ```
 
-### 7. Immutability
+### 7. Common Figma→Code Mistakes to Avoid
+
+```tsx
+// MISTAKE 1: Grid stretching fixed-width containers
+// WRONG: grid stretches children to fill columns
+<div className="grid grid-cols-3 gap-6">
+  <Column /> {/* stretches to 33% */}
+</div>
+// CORRECT: flex preserves fixed widths
+<div className="flex gap-6 overflow-x-auto">
+  <Column className="w-[360px] shrink-0" />
+</div>
+
+// MISTAKE 2: Approximating colors with Tailwind palette
+// WRONG: bg-orange-50 != Figma's exact badge color
+"bg-orange-50 text-orange-700"
+// CORRECT: exact hex from Figma fill data
+"bg-[#FBF4EC] text-[#D28E3D]"
+
+// MISTAKE 3: Guessing font weight
+// WRONG: assumed bold because title looks heavy
+"text-2xl font-bold"
+// CORRECT: Figma says fontWeight: 500
+"text-2xl font-medium"
+
+// MISTAKE 4: Flat layout when Figma nests auto-layout frames
+// WRONG: all elements as flat siblings with one gap
+<div className="flex flex-col items-center gap-8">
+  <Icon /><h1>Title</h1><p>Desc</p><Card /><Button />
+</div>
+// CORRECT: mirror Figma's nested auto-layout groups
+<div className="flex flex-col items-center gap-8">
+  <div className="flex flex-col items-center gap-5">
+    <Icon />
+    <div className="flex flex-col items-center gap-3">
+      <h1>Title</h1>
+      <p>Desc</p>
+    </div>
+  </div>
+  <Card />
+  <Button />
+</div>
+
+// MISTAKE 5: Using p-4 when Figma says 18px
+// WRONG: p-4 = 16px, close but not exact
+<div className="p-4">
+// CORRECT: 18px is not on scale, use arbitrary
+<div className="p-[18px]">
+
+// MISTAKE 6: Missing dark mode classes
+// WRONG: light mode only
+<div className="bg-white text-[#111C2C]">
+// CORRECT: always pair light + dark variants
+<div className="bg-white text-[#111C2C] dark:bg-[#0B1120] dark:text-[#F1F5F9]">
+```
+
+### 8. Immutability
 
 From global coding rules — NEVER mutate:
 
@@ -282,6 +455,21 @@ npx eslint {file-path} --no-error-on-unmatched-pattern
 4. **Run relevant tests:**
 ```bash
 npx vitest run {test-file} --reporter=verbose
+```
+
+5. **shadcn/ui compliance check (for .tsx component/page files):**
+```bash
+# Detect forbidden raw HTML elements in the file
+grep -n '<input\b\|<button\b\|<select\b\|<textarea\b' {file-path}
+# If any matches found → STOP and replace with shadcn/ui equivalents
+```
+If raw HTML elements are found, replace them with shadcn/ui components before proceeding.
+
+6. **Design token check (for .tsx component/page files):**
+```bash
+# Detect hardcoded hex colors
+grep -n '#[0-9a-fA-F]\{3,8\}' {file-path}
+# If matches found in className or style props → STOP and replace with CSS variable tokens
 ```
 
 ## Implementation Order
